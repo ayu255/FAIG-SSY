@@ -62,6 +62,8 @@ def faig(img1, img2, gt_img, baseline_model_path, target_model_path, total_step,
         # measure the distance between the network output and the ground-truth
         # refer to the equation 3 in the main paper
         criterion = torch.nn.MSELoss(reduction='sum')
+        print(gt_img.shape)
+        print(output1.shape)
         loss1 = criterion(gt_img, output1)
         # calculate the gradient of F to every filter
         loss1.backward()
