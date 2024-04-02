@@ -17,15 +17,18 @@ def main():
     parser.add_argument('--kernel_size', type=int, default=21)
     parser.add_argument('--kernel_sigma', type=int, default=2)
     parser.add_argument('--noise_sigma', type=float, default=0.1)
+    parser.add_argument('--save_bicx2_folder', type=str, default='datasets/Set14/bicx2', help='save just bicx2 folder')
     args = parser.parse_args()
 
     ori_folder = args.ori_folder
     save_noise_folder = args.save_noise_folder
     save_blur_folder = args.save_blur_folder
-
+    save_bicx2_floder = args.save_bicx2_folder
+    
     os.makedirs(save_noise_folder, exist_ok=True)
     os.makedirs(save_blur_folder, exist_ok=True)
-
+    os.makedirs(save_bicx2_floder, exist_ok=True)
+    
     img_list = sorted(list(scandir(ori_folder, full_path=True)))
 
     pbar = tqdm(total=len(img_list), desc='')
@@ -56,6 +59,11 @@ def main():
         save_noise_img_path = os.path.join(save_noise_folder, basename)
         cv2.imwrite(save_noise_img_path, noise_img * 255.0)
 
+        # generate bicx2 image
+        img = cv2.resize(img, (w // 2, h // 2), interpolation=cv2.INTER_LINEAR)
+        bicx2_img = np.clip((img * 255.0).round(), 0, 255) / 255.
+        save_bicx2_img_path = os.path.join(save_bicx2_floder, basename)
+        cv2.imwrite(save_bicx2_img_path, bicx2_img * 255.0)
 
 if __name__ == '__main__':
     main()

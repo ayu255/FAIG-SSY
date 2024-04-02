@@ -9,6 +9,7 @@ from tqdm import tqdm
 from basicsr.archs.srresnet_arch import MSRResNet
 from basicsr.utils.img_util import img2tensor
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def faig(img1, img2, gt_img, baseline_model_path, target_model_path, total_step, conv_name_list, scale):
     """ filter Attribution Integrated Gradients.
@@ -183,43 +184,43 @@ def faig(img1, img2, gt_img, baseline_model_path, target_model_path, total_step,
     return faig_img1.cpu().numpy()
 
 
-def main():
+def call_faig(baseline_model_path,target_model_path,noise_folder,blur_folder,gt_folder,total_step,scale):
+    
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument(
+    #     '--baseline_model_path',
+    #     type=str,
+    #     default='experiments/srresnet/baseline_model.pth',
+    #     help='path of baseline model')
+    # parser.add_argument(
+    #     '--target_model_path', type=str, default='experiments/srresnet/target_model.pth', help='path of target model')
+    # parser.add_argument('--gt_folder', type=str, default='datasets/Set14/GTmod12', help='folder that contains gt image')
+    # parser.add_argument(
+    #     '--blur_folder', type=str, default='datasets/Set14/Blur2_LRbicx2', help='folder that contains blurry image')
+    # parser.add_argument(
+    #     '--noise_folder', type=str, default='datasets/Set14/LRbicx2_noise0.1', help='folder that contains noisy image')
+    # parser.add_argument('--total_step', type=int, default=100)
+    # parser.add_argument('--scale', type=int, default=2, help='scale ratio')
+    # parser.add_argument(
+    #     '--record_filters_folder',
+    #     type=str,
+    #     default='results/Interpret/neuron-search/srresnet/Set14/faig',
+    #     help='folder that saves the sorted location index of discovered filters')
+    # args = parser.parse_args()
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--baseline_model_path',
-        type=str,
-        default='experiments/srresnet/baseline_model.pth',
-        help='path of baseline model')
-    parser.add_argument(
-        '--target_model_path', type=str, default='experiments/srresnet/target_model.pth', help='path of target model')
-    parser.add_argument('--gt_folder', type=str, default='datasets/Set14/GTmod12', help='folder that contains gt image')
-    parser.add_argument(
-        '--blur_folder', type=str, default='datasets/Set14/Blur2_LRbicx2', help='folder that contains blurry image')
-    parser.add_argument(
-        '--noise_folder', type=str, default='datasets/Set14/LRbicx2_noise0.1', help='folder that contains noisy image')
-    parser.add_argument('--total_step', type=int, default=100)
-    parser.add_argument('--scale', type=int, default=2, help='scale ratio')
-    parser.add_argument(
-        '--record_filters_folder',
-        type=str,
-        default='results/Interpret/neuron-search/srresnet/Set14/faig',
-        help='folder that saves the sorted location index of discovered filters')
-    args = parser.parse_args()
+    # # configuration
+    # baseline_model_path = args.baseline_model_path
+    # target_model_path = args.target_model_path
+    # gt_folder = args.gt_folder
+    # blur_folder = args.blur_folder
+    # noise_folder = args.noise_folder
+    # total_step = args.total_step
+    # scale = args.scale
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # configuration
-    baseline_model_path = args.baseline_model_path
-    target_model_path = args.target_model_path
-    gt_folder = args.gt_folder
-    blur_folder = args.blur_folder
-    noise_folder = args.noise_folder
-    total_step = args.total_step
-    scale = args.scale
-
-    record_filters_folder = args.record_filters_folder
-    os.makedirs(record_filters_folder, exist_ok=True)
-
+    # record_filters_folder = args.record_filters_folder
+    # os.makedirs(record_filters_folder, exist_ok=True)
+    
+    
     conv_name_list = []
     cumulate_num_neurons = [0]
     target_state_dict = torch.load(target_model_path)['params_ema']
@@ -269,47 +270,22 @@ def main():
 
     # sort the neurons in descending order
     sorted_noisy_location = np.argsort(faig_average_noisy)[::-1]
-    save_noisy_filter_txt = os.path.join(record_filters_folder, 'noise_index.txt')
-    np.savetxt(save_noisy_filter_txt, sorted_noisy_location, delimiter=',', fmt='%d')
+    # save_noisy_filter_txt = os.path.join(record_filters_folder, 'noise_index.txt')
+    # np.savetxt(save_noisy_filter_txt, sorted_noisy_location, delimiter=',', fmt='%d')
     pbar.close()
-
-    # deal blurry imgs
-    # average all the gradient difference in a whole dataset
-    faig_average_blurry = 0.0
-    print('Now we sort the filters for blur!')
-    pbar = tqdm(total=len(blur_img_list), desc='')
-    for img_idx, path in enumerate(blur_img_list):
-        # read image
-        imgname = os.path.basename(path)
-        basename, _ = os.path.splitext(imgname)
-        pbar.set_description(f'Read {basename}')
-        pbar.update(1)
-
-        blurry_img = cv2.imread(path, cv2.IMREAD_COLOR).astype(np.float32) / 255.
-        blurry_img = img2tensor(blurry_img).unsqueeze(0).to(device)
-        noisy_img = cv2.imread(noise_img_list[img_idx], cv2.IMREAD_COLOR).astype(np.float32) / 255.
-        noisy_img = img2tensor(noisy_img).unsqueeze(0).to(device)
-        gt_img_path = os.path.join(gt_folder, imgname)
-        gt_img = cv2.imread(gt_img_path, cv2.IMREAD_COLOR).astype(np.float32) / 255.
-        gt_img = img2tensor(gt_img).unsqueeze(0).to(device)
-
-        # calculate the neurons
-        diff = faig(
-            blurry_img,
-            noisy_img,
-            gt_img,
-            baseline_model_path,
-            target_model_path,
-            total_step,
-            conv_name_list,
-            scale=scale)
-        faig_average_blurry += np.array(diff)
-
-    sorted_blurry_location = np.argsort(faig_average_blurry)[::-1]
-    save_blurry_filter_txt = os.path.join(record_filters_folder, 'blur_index.txt')
-    np.savetxt(save_blurry_filter_txt, sorted_blurry_location, delimiter=',', fmt='%d')
-    pbar.close()
-
+    return sorted_noisy_location
 
 if __name__ == '__main__':
-    main()
+    
+    parameter={
+        "baseline_model_path":"model/srresnet/baseline_model.pth",
+        "target_model_path":"model/srresnet/target_model.pth",
+        "noise_folder":"datasets/Set14/LRbicx2_noise0.1",
+        "blur_folder":"datasets/Set14/Blur2_LRbicx2",
+        "gt_folder":"datasets/Set14/GTmod12",
+        "total_step":100,
+        "scale":2
+        
+    }
+    print(call_faig(**parameter))
+    

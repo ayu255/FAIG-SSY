@@ -198,6 +198,9 @@ def main():
         '--blur_folder', type=str, default='datasets/Set14/Blur2_LRbicx2', help='folder that contains blurry image')
     parser.add_argument(
         '--noise_folder', type=str, default='datasets/Set14/LRbicx2_noise0.1', help='folder that contains noisy image')
+    parser.add_argument(
+        '--bicx2_folder', type=str, default='datasets/Set14/bicx2', help='folder that Only downsampled images are included.'
+    )
     parser.add_argument('--total_step', type=int, default=100)
     parser.add_argument('--scale', type=int, default=2, help='scale ratio')
     parser.add_argument(
@@ -214,6 +217,7 @@ def main():
     gt_folder = args.gt_folder
     blur_folder = args.blur_folder
     noise_folder = args.noise_folder
+    bicx2_folder = args.bicx2_folder
     total_step = args.total_step
     scale = args.scale
 
@@ -234,7 +238,8 @@ def main():
 
     noise_img_list = sorted(glob.glob(os.path.join(noise_folder, '*')))
     blur_img_list = sorted(glob.glob(os.path.join(blur_folder, '*')))
-
+    bicx2_img_list = sorted(glob.glob(os.path.join(bicx2_folder, '*')))
+    
     # deal noisy imgs
     # average all the gradient difference in a whole dataset
     faig_average_noisy = 0.0
@@ -251,6 +256,8 @@ def main():
         noisy_img = img2tensor(noisy_img).unsqueeze(0).to(device)
         blurry_img = cv2.imread(blur_img_list[img_idx], cv2.IMREAD_COLOR).astype(np.float32) / 255.
         blurry_img = img2tensor(blurry_img).unsqueeze(0).to(device)
+        bicx2_img = cv2.imread(bicx2_img_list[img_idx], cv2.IMREAD_COLOR).astype(np.float32) / 255.
+        bicx2_img = img2tensor(bicx2_img).unsqueeze(0).to(device)
         gt_img_path = os.path.join(gt_folder, imgname)
         gt_img = cv2.imread(gt_img_path, cv2.IMREAD_COLOR).astype(np.float32) / 255.
         gt_img = img2tensor(gt_img).unsqueeze(0).to(device)
